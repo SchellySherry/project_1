@@ -16,10 +16,34 @@
       height: 100%;
       object-fit: cover;
     }
+
+    #fullscreen-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 999;
+      background: rgba(255,255,255,0.9);
+      border: none;
+      padding: 10px 15px;
+      border-radius: 25px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: opacity 0.5s ease; 
+    }
+    #fullscreen-btn.hidden {
+      opacity: 0; 
+      pointer-events: none; 
+    }
+    #fullscreen-btn:hover:not(.hidden) {
+      background: white;
+    }
   </style>
 </head>
 <body>
   <video id="player" autoplay muted playsinline></video>
+
+  <button id="fullscreen-btn"></button>
 
   <script>
     // ====== 動画リスト ======
@@ -312,11 +336,11 @@
 ];
 
     const player = document.getElementById("player");
+    const fullscreenBtn = document.getElementById("fullscreen-btn");
 
-    let order = 1; // 1 = 順方向, -1 = 逆方向
-    let index = Math.floor(Math.random() * videos.length); // ランダム開始
+    let order = 1;
+    let index = Math.floor(Math.random() * videos.length);
 
-    // ====== 再生関数 ======
     function playVideo() {
       player.src = videos[index];
       player.play().catch(() => {
@@ -325,7 +349,6 @@
       });
     }
 
-    // ====== 終了時処理 ======
     player.addEventListener("ended", () => {
       index += order;
       if (index >= videos.length || index < 0) {
@@ -335,16 +358,35 @@
       playVideo();
     });
 
-    // ====== ページ読み込み時に再生 ======
     window.onload = () => {
       playVideo();
     };
 
-    // ====== 🔊 クリックで音声を有効にする ======
+
     document.body.addEventListener("click", () => {
-      player.muted = false; // ミュート解除
+      player.muted = false;
       player.play();
     }, { once: true });
+
+
+    fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          fullscreenBtn.textContent = "";
+
+          setTimeout(() => fullscreenBtn.classList.add("hidden"), 3000);
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          fullscreenBtn.textContent = "";
+          fullscreenBtn.classList.remove("hidden"); 
+        });
+      }
+    });
+
+    player.addEventListener("click", () => {
+      fullscreenBtn.classList.remove("hidden");
+    });
 
   </script>
 </body>
