@@ -15,12 +15,8 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      position: absolute;
-      top: 0;
-      left: 0;
-      transition: opacity 0.4s ease;
+      background: black;
     }
-
     #fullscreen-btn {
       position: fixed;
       top: 20px;
@@ -39,15 +35,10 @@
       opacity: 0;
       pointer-events: none;
     }
-    #fullscreen-btn:hover:not(.hidden) {
-      background: white;
-    }
   </style>
 </head>
 <body>
-  <!-- ダブルバッファ方式でラグを減らす -->
-  <video id="videoA" autoplay muted playsinline></video>
-  <video id="videoB" autoplay muted playsinline style="opacity:0;"></video>
+  <video id="player" autoplay muted playsinline></video>
   <button id="fullscreen-btn">⛶</button>
 
   <script>
@@ -339,89 +330,67 @@
       "videos/285.mp4",
     ];
 
-    const videoA = document.getElementById("videoA");
-    const videoB = document.getElementById("videoB");
+    const player = document.getElementById("player");
     const fullscreenBtn = document.getElementById("fullscreen-btn");
-    let activeVideo = videoA;
-    let bufferVideo = videoB;
 
-    let index = Math.floor(Math.random() * videos.length);
-    let order = Math.random() < 0.5 ? 1 : -1;
+    let order = 1;          // +1 または -1（再生方向）
+    let index = 0;          // 現在のインデックス
+    let playedCount = 0;    // 現在のサイクルで何本再生したか
 
-    // === 次動画を決定 ===
-    function nextIndex() {
-      index += order;
-      if (index >= videos.length || index < 0) {
-        // 一周終了 → ランダム再スタート
-        index = Math.floor(Math.random() * videos.length);
-        order = Math.random() < 0.5 ? 1 : -1;
-      }
-      return index;
+    // ランダムにサイクルを初期化
+    function startNewCycle() {
+      index = Math.floor(Math.random() * videos.length);
+      order = Math.random() < 0.5 ? 1 : -1;
+      playedCount = 0;
+      playVideo();
     }
 
-    // === バッファ再生で切り替え ===
-    function playNextVideo() {
-      const next = videos[nextIndex()];
-      bufferVideo.src = next;
-      bufferVideo.load();
-
-      // 事前にバッファしておく
-      bufferVideo.oncanplaythrough = () => {
-        // 再生中のvideoをフェードアウト
-        activeVideo.style.opacity = 0;
-        bufferVideo.style.opacity = 1;
-
-        // 新しいvideoを再生
-        bufferVideo.play().catch(() => {});
-        activeVideo.pause();
-
-        // videoを入れ替え
-        [activeVideo, bufferVideo] = [bufferVideo, activeVideo];
-      };
-    }
-
-    // === 最初の再生 ===
-    function startPlayback() {
-      activeVideo.src = videos[index];
-      activeVideo.play().catch(() => {
-        activeVideo.muted = true;
-        activeVideo.play();
+    // 指定された動画を再生
+    function playVideo() {
+      player.src = videos[index];
+      player.play().catch(() => {
+        player.muted = true;
+        player.play().catch(()=>{});
       });
+      playedCount++;
     }
 
-    // === ループ処理 ===
-    activeVideo.addEventListener("ended", playNextVideo);
-    bufferVideo.addEventListener("ended", playNextVideo);
+    // 動画終了時の処理
+    player.addEventListener("ended", () => {
+      if (playedCount < videos.length) {
+        // 次の動画へ（ラップ対応）
+        index = (index + order + videos.length) % videos.length;
+        playVideo();
+      } else {
+        // 一周したら新しいサイクル開始
+        startNewCycle();
+      }
+    });
 
-    window.onload = startPlayback;
+    // 初期再生
+    window.onload = () => {
+      startNewCycle();
+    };
 
-    // === 音声ON用 ===
+    // 初回クリックで音声ON
     document.body.addEventListener("click", () => {
-      videoA.muted = false;
-      videoB.muted = false;
-      activeVideo.play();
+      player.muted = false;
+      player.play();
     }, { once: true });
 
-    // === フルスクリーン ===
+    // フルスクリーンボタン
     fullscreenBtn.addEventListener("click", () => {
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().then(() => {
-          fullscreenBtn.textContent = "⛶";
-          setTimeout(() => fullscreenBtn.classList.add("hidden"), 3000);
-        });
+        document.documentElement.requestFullscreen();
+        setTimeout(() => fullscreenBtn.classList.add("hidden"), 3000);
       } else {
-        document.exitFullscreen().then(() => {
-          fullscreenBtn.textContent = "⛶";
-          fullscreenBtn.classList.remove("hidden");
-        });
+        document.exitFullscreen();
+        fullscreenBtn.classList.remove("hidden");
       }
     });
 
-    // === クリックでボタン再表示 ===
-    activeVideo.addEventListener("click", () => {
-      fullscreenBtn.classList.remove("hidden");
-    });
-    bufferVideo.addEventListener("click", () => {
+    // クリックでボタン再表示
+    player.addEventListener("click", () => {
       fullscreenBtn.classList.remove("hidden");
     });
   </script>
